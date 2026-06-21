@@ -1,63 +1,62 @@
 # MAD Identity Verification
 
-Учебный, но рабочий **KYC-like pipeline** для проверки личности по связке **паспорт + selfie + профиль в базе**. Проект объединяет OCR паспортных данных, сравнение лица по embeddings, сверку с хранилищем профилей и итоговый статус `ACCEPT / REVIEW / REJECT`.
+Рабочий **KYC-like pipeline для верификации личности** по фотографии паспорта, selfie и сохраненному профилю пользователя. Проект объединяет OCR паспортных данных, извлечение face embeddings, сверку с базой профилей и консервативный слой принятия решения с тремя исходами: `ACCEPT`, `REVIEW` и `REJECT`.
 
-Проект подготовлен для запуска в **Google Colab**: интерфейс Gradio, PaddleOCR worker в отдельном процессе, DeepFace/Facenet512 для face embeddings, Supabase или локальный JSON fallback для хранения профилей.
+Runtime рассчитан на запуск в **Google Colab** и включает Gradio-интерфейс, изолированный PaddleOCR worker, DeepFace/Facenet512 для биометрического сравнения и хранилище на Supabase либо локальный JSON fallback.
 
-> Это не production KYC и не юридически значимая проверка личности. Это учебная демонстрация архитектуры, методов анализа данных и безопасного decision layer. Не используйте реальные паспорта, selfie и персональные данные в публичной demo-среде.
-
-## Итоговый вывод по проекту
-
-В результате получился работающий прототип KYC-проверки: пользователь регистрирует эталонный профиль, система распознаёт данные паспорта, сравнивает их с профилем, извлекает embeddings лица из эталонного фото, паспорта и selfie, а затем принимает решение. Важная особенность проекта — он не делает опасный бинарный вывод только по одному признаку. OCR, паспортные данные и лицо рассматриваются как независимые сигналы, а спорные случаи отправляются в `REVIEW`.
-
-Сильные стороны реализации:
-
-- полноценный end-to-end pipeline: регистрация → OCR → parser → data matching → face verification → decision;
-- отдельный PaddleOCR worker, изолирующий нестабильные OCR-зависимости от основного Gradio-процесса;
-- собственный обученный text-line classifier OCR-строк;
-- fallback на local JSON, чтобы демонстрация не ломалась при недоступности Supabase;
-- безопасная зона `REVIEW` вместо грубого `yes/no`;
-- документация по запуску, секретам, безопасности и публикации на GitHub.
-
-Главный практический вывод: даже в учебном KYC нельзя полагаться только на OCR или только на face recognition. Надёжнее строить многоступенчатую проверку, где OCR даёт кандидатов, parser и validators очищают данные, база подтверждает паспортный профиль, а биометрия проверяет согласованность лица.
+> Репозиторий является исследовательским и учебным прототипом. Это не сертифицированная промышленная KYC-система, не юридически значимая проверка личности и не production-решение для биометрического контроля доступа.
 
 ## Что умеет проект
 
-- Регистрирует профиль: ФИО, дата рождения, серия/номер паспорта, эталонное фото лица.
-- Извлекает 512-мерный face embedding через DeepFace/Facenet512.
-- Нормализует фото паспорта: EXIF correction, perspective transform, CLAHE, ROI crop generation.
-- Запускает OCR паспорта через `paddle_ocr_worker.py` как subprocess.
-- Классифицирует OCR-строки собственным `text_line_classifier.joblib`.
-- Парсит паспортные поля: ФИО, дату рождения, серию, номер, дату выдачи, код подразделения, MRZ/debug candidates.
-- Ищет лучший профиль в Supabase или local JSON.
-- Считает cosine distance между тремя источниками лица: reference, passport face, selfie.
-- Выдаёт итог `ACCEPT`, `REVIEW` или `REJECT`.
+Система реализует полный сценарий проверки личности:
+
+1. Создает эталонный профиль по паспортным полям и reference photo.
+2. Нормализует изображение паспорта и нарезает его на ROI-области.
+3. Запускает OCR через отдельный PaddleOCR worker-процесс.
+4. Классифицирует OCR-строки и собирает структурированные паспортные поля.
+5. Сравнивает извлеченные паспортные данные с сохраненными профилями.
+6. Извлекает embeddings лица из reference photo, паспортного фото и selfie.
+7. Считает cosine distances и data score.
+8. Формирует итоговое решение: `ACCEPT`, `REVIEW` или `REJECT`.
+
+Главная идея проекта: система не доверяет одному признаку. OCR, parser, база данных, face verification и decision layer работают как отдельные этапы. Если данные спорные, результат уходит в `REVIEW`, а не принимается автоматически.
+
+## Возможности
+
+- Предобработка паспорта: учет EXIF-поворота, нормализация перспективы, CLAHE и ROI crop generation.
+- OCR через `paddle_ocr_worker.py`, запущенный отдельным subprocess.
+- Классификация OCR-фрагментов через обученную модель TF-IDF + SGDClassifier.
+- Parser паспортных данных с validators, MRZ-логикой и weighted consensus для серии/номера паспорта.
+- Face verification через DeepFace/Facenet512 и cosine distance.
+- Хранение профилей и попыток проверки в Supabase или local JSON fallback.
+- Gradio UI для регистрации профиля, OCR паспорта, полной проверки и диагностики.
+- Безопасная публичная структура репозитория: без ключей, runtime uploads, local stores и реальных документов.
 
 ## Архитектура
 
 ```text
 Регистрация профиля
-    ФИО + паспорт + reference photo
+    ФИО + дата рождения + паспорт + reference photo
         -> DeepFace / Facenet512 embedding
-        -> Supabase identity_profiles или local JSON
+        -> Supabase identity_profiles или local JSON fallback
 
 OCR паспорта
-    passport image
-        -> auto_normalize_passport
-        -> ROI crops: поля, MRZ, vertical ID, face crop
+    изображение паспорта
+        -> нормализация изображения
+        -> ROI crops: поля, MRZ, вертикальный номер, зона фото
         -> PaddleOCR worker subprocess
         -> raw OCR items
         -> text-line classifier
         -> passport parser
-        -> passport_data + confidence + debug
+        -> structured passport_data + confidence/debug
 
 Полная проверка
-    passport image + selfie
+    изображение паспорта + selfie
         -> OCR passport_data
-        -> choose_best_profile по паспортным данным
-        -> embeddings: passport face, selfie, reference
+        -> выбор лучшего профиля по data score
+        -> face embeddings: reference, passport, selfie
         -> cosine distances
-        -> decision_service
+        -> decision service
         -> ACCEPT / REVIEW / REJECT
 ```
 
@@ -65,47 +64,48 @@ OCR паспорта
 
 ```text
 mad-identity-verification/
-├── mad_colab_pkg/              # основной Python-пакет runtime
+├── mad_colab_pkg/              # основной runtime-пакет
 │   ├── colab_app.py            # Gradio UI
-│   ├── colab_pipeline.py       # orchestration: OCR, parser, face, store, decision
-│   ├── image_utils.py          # нормализация паспорта и ROI crop generation
-│   ├── paddle_ocr_worker.py    # отдельный OCR subprocess
-│   ├── passport_parser.py      # parser паспортных OCR-строк
-│   ├── text_classifier.py      # inference обученного OCR-line classifier
-│   ├── face_service.py         # DeepFace/Facenet512 embeddings и cosine distance
-│   ├── decision_service.py     # data score + face statuses -> final decision
-│   └── identity_store.py       # Supabase-first + local JSON fallback
+│   ├── colab_pipeline.py       # orchestration layer
+│   ├── image_utils.py          # предобработка паспорта и crop-ы
+│   ├── paddle_ocr_worker.py    # изолированный OCR subprocess
+│   ├── passport_parser.py      # парсинг паспортных OCR-строк
+│   ├── text_classifier.py      # инференс OCR-line classifier
+│   ├── face_service.py         # DeepFace embeddings и cosine distance
+│   ├── decision_service.py     # data score + face status -> final decision
+│   └── identity_store.py       # Supabase/local JSON storage adapter
 ├── training/
 │   ├── train_text_classifier.py
 │   └── calibrate_face_threshold_celeba.py
 ├── artifacts/
 │   ├── text_line_classifier.joblib
-│   ├── text_line_classifier_metrics.json
-│   └── text_line_classifier_dataset.csv
+│   └── text_line_classifier_metrics.json
 ├── data/
-│   └── passport-2000.csv
+│   └── passport-2000.csv       # небольшой публичный синтетический sample
 ├── examples/
 ├── sql/
-│   ├── supabase_schema.sql                 # secure-by-default: RLS enabled
-│   └── supabase_schema_demo_insecure.sql   # demo-only: RLS disabled
+│   ├── supabase_schema.sql                 # схема с включенным RLS
+│   └── supabase_schema_demo_insecure.sql   # demo-only вариант без RLS
 ├── notebooks/
-│   └── MAD_Identity_Verification_Final_Defense_Clean.ipynb
+│   └── mad_identity_verification_colab.ipynb
 ├── docs/
+│   ├── API_SECRETS.md
+│   ├── COLAB_TROUBLESHOOTING.md
+│   └── PROJECT_STRUCTURE.md
 ├── .github/workflows/security-check.yml
 ├── .env.example
-├── .gitignore
+├── SECURITY.md
 └── README.md
 ```
 
 ## Быстрый запуск в Google Colab
 
-1. Откройте `notebooks/MAD_Identity_Verification_Final_Defense_Clean.ipynb`.
+1. Откройте `notebooks/mad_identity_verification_colab.ipynb`.
 2. Выберите `Runtime -> Change runtime type -> GPU`.
-3. Выполните ячейку установки зависимостей.
-4. Если Colab попросит restart runtime, перезапустите runtime и продолжите со следующей ячейки.
-5. Для Supabase добавьте `SUPABASE_URL` и `SUPABASE_KEY` через Colab Secrets. Без них проект работает через local JSON fallback.
-6. Для безопасной Supabase-схемы используйте `sql/supabase_schema.sql`. Для быстрой classroom demo только с синтетикой можно использовать `sql/supabase_schema_demo_insecure.sql`.
-7. Запустите Gradio:
+3. Запустите ячейки установки зависимостей.
+4. Если Colab попросит перезапустить runtime, перезапустите его и продолжите выполнение со следующей ячейки.
+5. Добавьте Supabase credentials через Colab Secrets или используйте local JSON fallback без Supabase.
+6. Запустите интерфейс:
 
 ```python
 from mad_colab_pkg.colab_app import launch_gradio
@@ -113,11 +113,11 @@ from mad_colab_pkg.colab_app import launch_gradio
 demo = launch_gradio(share=False)
 ```
 
-`share=True` включайте только для защиты/демонстрации и только на синтетических данных.
+`share=True` стоит включать только тогда, когда действительно нужна публичная Gradio-ссылка, и только на синтетических данных.
 
-## Supabase и секреты
+## Настройка Supabase
 
-В notebook нет захардкоженных API keys. Значения читаются через Colab Secrets:
+Notebook читает ключи из Colab Secrets или environment variables. Ключи не хранятся в репозитории.
 
 ```python
 from google.colab import userdata
@@ -126,11 +126,28 @@ SUPABASE_URL = userdata.get("SUPABASE_URL")
 SUPABASE_KEY = userdata.get("SUPABASE_KEY")
 ```
 
-Для demo используйте отдельный Supabase-проект и anon key. Не используйте service-role key в notebook, Gradio UI или публичной среде. Если ключ когда-либо попадал в notebook output, Git history или чат, считайте его скомпрометированным и перевыпустите.
+Рекомендации:
 
-## Метрики text-line classifier
+- Используйте отдельный Supabase-проект для экспериментов.
+- Для demo runtime используйте anon public key.
+- Никогда не добавляйте service-role key в notebook, frontend UI или публичный репозиторий.
+- Предпочитайте `sql/supabase_schema.sql`, где включен RLS.
+- `sql/supabase_schema_demo_insecure.sql` используйте только для изолированных синтетических демонстраций.
 
-Собственное обучение в проекте относится к OCR text-line classifier, а не к DeepFace и не к PaddleOCR.
+Подробнее: `docs/API_SECRETS.md`.
+
+## OCR text-line classifier
+
+В проекте есть собственная обученная модель, которая классифицирует OCR-фрагменты паспорта по типам строк: фамилия, имя, дата рождения, код подразделения, серия паспорта, номер паспорта, MRZ, noise и т.д.
+
+Pipeline модели:
+
+```text
+TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4))
+    -> SGDClassifier(loss="modified_huber", class_weight="balanced")
+```
+
+Метрики bundled classifier artifact:
 
 | Метрика | Значение |
 |---|---:|
@@ -141,78 +158,105 @@ SUPABASE_KEY = userdata.get("SUPABASE_KEY")
 | Train / Test | 57600 / 14400 |
 | Split | по `person_id` |
 
-Класс `passport_number` сложнее остальных, потому что отдельная шестизначная строка похожа на коды, даты, шум и MRZ-фрагменты. Поэтому classifier не является единственным источником истины: итоговые серия/номер выбираются parser-ом через ROI + MRZ + weighted consensus.
+Classifier не является единственным источником истины. Для чувствительных полей, например серии и номера паспорта, parser дополнительно учитывает confidence OCR, источник crop-а, MRZ-подсказки, вертикальные номера и validators.
 
-## Decision logic
+## Face verification
+
+Face embeddings извлекаются через DeepFace/Facenet512 и сравниваются по cosine distance.
 
 ```text
 FACE_ACCEPT_THRESHOLD = 0.32
 FACE_REVIEW_THRESHOLD = 0.43
+```
+
+Система считает расстояния между:
+
+- лицом из паспорта и reference photo;
+- selfie и лицом из паспорта;
+- selfie и reference photo.
+
+Чем меньше расстояние, тем выше сходство лиц. Пограничные значения не принимаются автоматически, а переводятся в `REVIEW`.
+
+## Сравнение паспортных данных и итоговое решение
+
+Паспортные поля сравниваются через взвешенный score:
+
+```text
+S_data = 0.35 * passport_number_match
+       + 0.25 * passport_series_match
+       + 0.25 * birth_date_match
+       + 0.15 * full_name_similarity
+```
+
+```text
 DATA_ACCEPT_THRESHOLD = 0.80
 DATA_REVIEW_THRESHOLD = 0.55
 ```
 
+Правила принятия решения:
+
 ```text
-если data_score >= 0.80 и обязательные face-сравнения accept:
+if data_score >= 0.80 and required face checks are accept:
     ACCEPT
-если data_score < 0.55 или обязательное face-сравнение reject:
+elif data_score < 0.55 or a required face check is reject:
     REJECT
-иначе:
+else:
     REVIEW
 ```
 
-`REVIEW` — штатная безопасная зона для спорного OCR, пограничного лица или неполного совпадения данных.
+`REVIEW` является нормальным результатом для спорного OCR, неполных данных, плохого качества изображения или пограничного сходства лиц.
 
-## Что было усилено перед публикацией
+## Выводы по проекту
 
-- Удалён хардкод Supabase URL/key из notebook.
-- Реальные ФИО и демонстрационные персональные значения заменены синтетикой.
-- Gradio `share=False` по умолчанию.
-- Gradio `debug=False` по умолчанию.
-- Upload-файлы проверяются по расширению и размеру.
-- Runtime export исключает `.env`, `storage/`, `local_store.json`, uploads, OCR jobs, debug и кэши.
-- Local JSON пишется с правами `0600`, где это поддерживается ОС.
-- Сохранение OCR debug, путей к изображениям и дополнительных embeddings в попытках проверки сделано opt-in через `STORE_DEBUG_ARTIFACTS=1`.
-- Основная SQL-схема теперь secure-by-default: RLS включён.
-- Добавлен GitHub Actions security check.
+Проект показывает, что рабочий KYC-like сценарий нельзя строить как один вызов OCR или одну проверку лица. Надежнее использовать pipeline, где каждый этап решает отдельную задачу и передает дальше не только результат, но и confidence/debug-информацию.
 
-## Что можно улучшить дальше
+Основные выводы:
 
-- Добавить нормальную авторизацию пользователей и строгие Supabase RLS policies.
-- Разделить роли: оператор, пользователь, администратор, аудит.
-- Шифровать биометрические embeddings и чувствительные поля на уровне приложения или БД.
-- Не хранить selfie/passport embeddings в попытках проверки без необходимости.
+- OCR хорошо извлекает кандидаты, но сам по себе не гарантирует корректность паспортных полей.
+- Parser с validators и source-aware scoring снижает риск выбрать случайные цифры, дату или код подразделения как номер паспорта.
+- Face verification полезна для проверки биометрической согласованности, но не должна игнорировать конфликт паспортных данных.
+- Слой `ACCEPT / REVIEW / REJECT` безопаснее бинарного решения, потому что спорные случаи не принимаются автоматически.
+- Изоляция PaddleOCR в отдельный worker повышает стабильность запуска в Colab и упрощает диагностику ошибок.
+- Supabase/local JSON fallback делает демонстрацию устойчивой: проект может работать даже без внешней базы.
+
+Итог: это рабочий демонстрационный KYC-like pipeline, который связывает паспортный OCR, ML-классификацию OCR-строк, биометрическое сравнение и сверку с хранилищем профилей в единую систему.
+
+## Ограничения
+
+- Проект не является сертифицированной системой идентификации личности.
+- Качество OCR зависит от освещения, размытия, угла съемки, бликов и качества документа.
+- Пороги face verification являются консервативными и должны калиброваться под конкретный набор данных.
+- Local JSON fallback предназначен только для demo-сценариев.
+- В проекте нет liveness detection и защиты от presentation attacks.
+- Gradio UI не заменяет production backend и не реализует полноценную пользовательскую аутентификацию.
+- Публичные sample-данные и model artifacts нужно перепроверить или заменить перед любым не-demo использованием.
+
+## Что можно улучшить
+
 - Добавить liveness detection для selfie.
-- Добавить детектор подделки/скрина документа.
-- Улучшить OCR через дообучение/тонкую настройку на реальных обезличенных примерах документов.
-- Добавить unit/integration tests для parser-а, decision_service и identity_store.
-- Подключить ruff, mypy, bandit/pip-audit в CI.
-- Сделать отдельный backend API вместо прямого Gradio runtime.
-- Перевести артефакты модели в безопасный формат, если появится загрузка пользовательских моделей.
-- Добавить Docker/Dev Container для воспроизводимого локального запуска.
+- Добавить проверку подлинности документа и screen-recapture detection.
+- Заменить фиксированные ROI crop-ы на обученный layout/document detector.
+- Расширить validators для паспортных полей и MRZ.
+- Добавить более строгие Supabase RLS policies для разных ролей пользователей.
+- Шифровать biometric embeddings и чувствительные поля при хранении.
+- Добавить unit/integration tests для parser, decision service и storage layer.
+- Добавить `ruff`, `mypy`, `bandit` и `pip-audit` в CI.
+- Вынести runtime в backend API вместо запуска полной логики прямо из Gradio.
+- Заменить pickle/joblib artifacts на более безопасный формат, если появится поддержка пользовательских моделей.
+- Упаковать проект в Docker/Dev Container для воспроизводимого локального запуска.
 
-## Что не коммитить
+## Безопасность
 
-- `.env`, Colab secrets, Supabase service-role keys.
-- `storage/`, `local_store.json`, загруженные паспорта, selfie, debug jobs.
-- Реальные документы, реальные biometric embeddings, реальные OCR логи.
-- Сырые материалы курсовой, внутренние промпты и черновики, если они не нужны в публичном репозитории.
+Не добавляйте в репозиторий:
 
-Перед публикацией см.:
+- `.env` файлы и API-ключи;
+- Supabase service-role keys;
+- реальные фото паспортов, selfie, OCR outputs и verification logs;
+- `storage/`, `local_store.json`, uploads и OCR jobs;
+- реальные biometric embeddings.
 
-- `docs/PII_CLEANUP_REPORT.md`
-- `docs/DEVELOPMENT_SECURITY_AUDIT.md`
-- `docs/PUBLISHING_GUIDE.md`
+Подробнее: `SECURITY.md` и `docs/API_SECRETS.md`.
 
-## Как объяснять проект на защите
+## Лицензия
 
-- DeepFace/Facenet512 используется как предобученный feature extractor, не дообучается.
-- PaddleOCR используется как предобученный OCR, не дообучается.
-- Собственное обучение — `training/train_text_classifier.py`, OCR text-line classifier.
-- CelebA используется только для экспериментальной калибровки face threshold.
-- OCR не является источником истины: parser и validators выбирают поля по ROI, MRZ, confidence и domain rules.
-- `ACCEPT / REVIEW / REJECT` безопаснее бинарного `yes/no`.
-
-## License
-
-Лицензия не выбрана. Перед публикацией добавьте `LICENSE`, если хотите разрешить другим использовать код.
+Лицензия пока не выбрана. Перед разрешением переиспользования или распространения проекта добавьте файл `LICENSE`.

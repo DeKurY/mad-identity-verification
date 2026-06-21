@@ -1,1 +1,1 @@
-0.4.1-github-clean-security
+v0.4.2-public-clean
