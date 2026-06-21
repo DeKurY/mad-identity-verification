@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.*
+
+# Runtime/user data: do not publish passports, selfies, embeddings or local DB
+storage/
+local_store.json
+**/local_store.json
+**/uploads/
+**/ocr_jobs/
+**/debug/
+
+# Colab / exported runtime archives
+*.zip
+*.tar
+*.tar.gz
+
+# Logs
+*.log
+train_stdout.txt
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Optional large external datasets
+celeba/
+CelebA/
+img_align_celeba/
+identity_CelebA.txt
+list_identity_celeba.txt

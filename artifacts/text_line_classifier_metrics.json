@@ -1,0 +1,319 @@
+{
+  "ok": true,
+  "trained_at_utc": "2026-05-31T17:39:58.195806+00:00",
+  "input_csv": "/mnt/data/mad_colab_v3_project/data/passport-2000.csv",
+  "input_csv_sha256": "e9ed2f6c704b0acd7ecabd3f002bb3dc359e5962d6ea711508fb2f007870dd49",
+  "dataset_rows": 72000,
+  "train_rows": 57600,
+  "test_rows": 14400,
+  "train_person_count": 1600,
+  "test_person_count": 400,
+  "labels": [
+    "birth_date",
+    "birth_place",
+    "department_code",
+    "firstname",
+    "gender",
+    "issue_date",
+    "issued_by",
+    "noise",
+    "passport_id",
+    "passport_number",
+    "passport_series",
+    "patronymic",
+    "surname"
+  ],
+  "classification_report": {
+    "birth_date": {
+      "precision": 0.8398133748055988,
+      "recall": 0.9,
+      "f1-score": 0.8688656476267096,
+      "support": 1200.0
+    },
+    "birth_place": {
+      "precision": 1.0,
+      "recall": 0.99875,
+      "f1-score": 0.9993746091307066,
+      "support": 800.0
+    },
+    "department_code": {
+      "precision": 0.8977812995245642,
+      "recall": 0.9441666666666667,
+      "f1-score": 0.9203899268887084,
+      "support": 1200.0
+    },
+    "firstname": {
+      "precision": 0.9924906132665833,
+      "recall": 0.99125,
+      "f1-score": 0.991869918699187,
+      "support": 800.0
+    },
+    "gender": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 400.0
+    },
+    "issue_date": {
+      "precision": 0.8220244716351501,
+      "recall": 0.92375,
+      "f1-score": 0.8699234844025897,
+      "support": 800.0
+    },
+    "issued_by": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 800.0
+    },
+    "noise": {
+      "precision": 0.8512922465208748,
+      "recall": 0.7646428571428572,
+      "f1-score": 0.8056444026340546,
+      "support": 2800.0
+    },
+    "passport_id": {
+      "precision": 0.9040318001135719,
+      "recall": 0.995,
+      "f1-score": 0.9473371020529604,
+      "support": 1600.0
+    },
+    "passport_number": {
+      "precision": 0.6521264994547438,
+      "recall": 0.49833333333333335,
+      "f1-score": 0.5649504015115729,
+      "support": 1200.0
+    },
+    "passport_series": {
+      "precision": 0.7930780559646539,
+      "recall": 0.8975,
+      "f1-score": 0.8420641125879593,
+      "support": 1200.0
+    },
+    "patronymic": {
+      "precision": 0.9987515605493134,
+      "recall": 1.0,
+      "f1-score": 0.9993753903810119,
+      "support": 800.0
+    },
+    "surname": {
+      "precision": 0.9950186799501868,
+      "recall": 0.99875,
+      "f1-score": 0.9968808484092326,
+      "support": 800.0
+    },
+    "accuracy": 0.8854861111111111,
+    "macro avg": {
+      "precision": 0.9035698924450186,
+      "recall": 0.9163186813186812,
+      "f1-score": 0.9082058341788226,
+      "support": 14400.0
+    },
+    "weighted avg": {
+      "precision": 0.8816705907264322,
+      "recall": 0.8854861111111111,
+      "f1-score": 0.8814588331816814,
+      "support": 14400.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      1080,
+      0,
+      2,
+      0,
+      0,
+      81,
+      0,
+      34,
+      0,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      0,
+      799,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    [
+      1,
+      0,
+      1133,
+      0,
+      0,
+      0,
+      0,
+      65,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      793,
+      0,
+      0,
+      0,
+      0,
+      0,
+      3,
+      0,
+      0,
+      4
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      400,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      49,
+      0,
+      3,
+      0,
+      0,
+      739,
+      0,
+      8,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      800,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      156,
+      0,
+      121,
+      2,
+      0,
+      75,
+      0,
+      2141,
+      42,
+      193,
+      70,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      2,
+      1592,
+      6,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      3,
+      0,
+      3,
+      0,
+      260,
+      126,
+      598,
+      207,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      5,
+      0,
+      117,
+      1077,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      800,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      799
+    ]
+  ],
+  "artifact": "/tmp/test_text_line_classifier.joblib",
+  "dataset_out": "/tmp/test_dataset.csv",
+  "note": "This file is generated by training/train_text_classifier.py inside the Colab notebook, not manually copied."
+}

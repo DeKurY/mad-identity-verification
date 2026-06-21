@@ -1,0 +1,11 @@
+# Lightweight project dependencies. Colab notebook installs GPU-specific packages separately.
+numpy
+pandas
+pillow
+opencv-python
+joblib
+scikit-learn
+rapidfuzz
+python-dotenv
+supabase>=2.0.0
+gradio>=4.44.0

@@ -1,0 +1,22 @@
+# Colab-oriented dependencies. PaddlePaddle GPU is installed in the notebook from Paddle indexes.
+requests==2.32.4
+supabase>=2.0.0
+python-dotenv
+rapidfuzz
+joblib
+scikit-learn
+pandas
+gradio>=4.44.0
+deepface==0.0.100
+retina-face==0.0.17
+tf-keras
+gdown
+fire
+gunicorn
+mtcnn
+lightphe
+lightdsa
+flask
+flask-cors
+paddleocr==3.3.3
+langchain-text-splitters>=1.0.0,<2.0.0
